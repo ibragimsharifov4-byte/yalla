@@ -1,57 +1,56 @@
-using Domain.Data;
 using Domain.interfaces;
 using Domain.Models;
-using Dapper;
+using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories;
 
-public class MenuItemRepository(Database database) : IMenuItemRepository
+public class MenuItemRepository(AppDbContext appDbContext) : IMenuItemRepository
 {
-    private Database _database = database;
+    private AppDbContext _context = appDbContext;
 
     public async Task<bool> AddMenuItem(MenuItem menuItem)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query =
-        "insert into menuitems (menuid, name, description, price, category) values (@menuid, @name, @description, @price, @category)";
-        var res = await connection.ExecuteAsync(query , menuItem);
+        _context.MenuItems.Add(menuItem);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<bool> DeleteMenuItem(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "delete from menuitems where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id});
+        var menuItem = await _context.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
+        if (menuItem == null)
+            return false;
+
+        _context.MenuItems.Remove(menuItem);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<List<MenuItem>> GetAllMenuItems()
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from menuitems";
-        var res = await connection.QueryAsync<MenuItem>(query);
-        return res.ToList();
+        return await _context.MenuItems.ToListAsync();
     }
 
     public async Task<MenuItem> GetMenuItem(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from menuitems where id = @id";
-        var res = await connection.QueryFirstOrDefaultAsync<MenuItem>(query, new {id});
-        return res!;
+        var menuItem = await _context.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
+        return menuItem!;
     }
 
-    public async Task<bool> UpdateMenuItem(MenuItem menuItem , int id)
+    public async Task<bool> UpdateMenuItem(MenuItem menuItem, int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "update menuitems set menuid = @menuid, name = @name, description = @description, price = @price, category = @category, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id , menuItem.MenuId, menuItem.Name, menuItem.Description, menuItem.Price, menuItem.Category});
+        var existing = await _context.MenuItems.FirstOrDefaultAsync(x => x.Id == id);
+        if (existing == null)
+            return false;
+
+        existing.MenuId = menuItem.MenuId;
+        existing.Name = menuItem.Name;
+        existing.Description = menuItem.Description;
+        existing.Price = menuItem.Price;
+        existing.Category = menuItem.Category;
+        existing.UpdatedAt = DateTime.Now;
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 }

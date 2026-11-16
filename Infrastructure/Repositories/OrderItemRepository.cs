@@ -1,57 +1,55 @@
-using Domain.Data;
 using Domain.interfaces;
 using Domain.Models;
-using Dapper;
+using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories;
 
-public class OrderItemRepository(Database database) : IOrderItemRepository
+public class OrderItemRepository(AppDbContext appDbContext) : IOrderItemRepository
 {
-    private Database _database = database;
+    private AppDbContext _context = appDbContext;
 
     public async Task<bool> AddOrderItem(OrderItem orderItem)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query =
-        "insert into orderitems (orderid, menuitemid, quantity, price) values (@orderid, @menuitemid, @quantity, @price)";
-        var res = await connection.ExecuteAsync(query , orderItem);
+        _context.OrderItems.Add(orderItem);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<bool> DeleteOrderItem(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "delete from orderitems where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id});
+        var orderItem = await _context.OrderItems.FirstOrDefaultAsync(x => x.Id == id);
+        if (orderItem == null)
+            return false;
+
+        _context.OrderItems.Remove(orderItem);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<List<OrderItem>> GetAllOrderItems()
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from orderitems";
-        var res = await connection.QueryAsync<OrderItem>(query);
-        return res.ToList();
+        return await _context.OrderItems.ToListAsync();
     }
 
     public async Task<OrderItem> GetOrderItem(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from orderitems where id = @id";
-        var res = await connection.QueryFirstOrDefaultAsync<OrderItem>(query, new {id});
-        return res!;
+        var orderItem = await _context.OrderItems.FirstOrDefaultAsync(x => x.Id == id);
+        return orderItem!;
     }
 
-    public async Task<bool> UpdateOrderItem(OrderItem orderItem , int id)
+    public async Task<bool> UpdateOrderItem(OrderItem orderItem, int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "update orderitems set orderid = @orderid, menuitemid = @menuitemid, quantity = @quantity, price = @price, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id , orderItem.OrderId, orderItem.MenuItemId, orderItem.Quantity, orderItem.Price});
+        var existing = await _context.OrderItems.FirstOrDefaultAsync(x => x.Id == id);
+        if (existing == null)
+            return false;
+
+        existing.OrderId = orderItem.OrderId;
+        existing.MenuItemId = orderItem.MenuItemId;
+        existing.Quantity = orderItem.Quantity;
+        existing.Price = orderItem.Price;
+        existing.UpdatedAt = DateTime.Now;
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 }

@@ -1,57 +1,58 @@
-using Domain.Data;
 using Domain.interfaces;
 using Domain.Models;
-using Dapper;
+using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Repositories;
 
-public class SubscriptionRepository(Database database) : ISubscriptionRepository
+public class SubscriptionRepository(AppDbContext appDbContext) : ISubscriptionRepository
 {
-    private Database _database = database;
+    private AppDbContext _context = appDbContext;
 
     public async Task<bool> AddSubscription(Subscription subscription)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query =
-        "insert into subscriptions (companyid, plantype, mealsperday, price, startdate, enddate, isactive) values (@companyid, @plantype, @mealsperday, @price, @startdate, @enddate, @isactive)";
-        var res = await connection.ExecuteAsync(query , subscription);
+        _context.Subscriptions.Add(subscription);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<bool> DeleteSubscription(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "delete from subscriptions where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id});
+        var subscription = await _context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
+        if (subscription == null)
+            return false;
+
+        _context.Subscriptions.Remove(subscription);
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 
     public async Task<List<Subscription>> GetAllSubscriptions()
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from subscriptions";
-        var res = await connection.QueryAsync<Subscription>(query);
-        return res.ToList();
+        return await _context.Subscriptions.ToListAsync();
     }
 
     public async Task<Subscription> GetSubscription(int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "select * from subscriptions where id = @id";
-        var res = await connection.QueryFirstOrDefaultAsync<Subscription>(query, new {id});
-        return res!;
+        var subscription = await _context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
+        return subscription!;
     }
 
-    public async Task<bool> UpdateSubscription(Subscription subscription , int id)
+    public async Task<bool> UpdateSubscription(Subscription subscription, int id)
     {
-        using var connection = _database.Connection();
-        connection.Open();
-        var query = "update subscriptions set companyid = @companyid, plantype = @plantype, mealsperday = @mealsperday, price = @price, startdate = @startdate, enddate = @enddate, isactive = @isactive, updatedat = current_timestamp where id = @id";
-        var res = await connection.ExecuteAsync(query, new {id , subscription.CompanyId, subscription.PlanType, subscription.MealsPerDay, subscription.Price, subscription.StartDate, subscription.EndDate, subscription.IsActive});
+        var existing = await _context.Subscriptions.FirstOrDefaultAsync(x => x.Id == id);
+        if (existing == null)
+            return false;
+
+        existing.CompanyId = subscription.CompanyId;
+        existing.PlanType = subscription.PlanType;
+        existing.MealsPerDay = subscription.MealsPerDay;
+        existing.Price = subscription.Price;
+        existing.StartDate = subscription.StartDate;
+        existing.EndDate = subscription.EndDate;
+        existing.IsActive = subscription.IsActive;
+        existing.UpdatedAt = DateTime.Now;
+        var res = await _context.SaveChangesAsync();
         return res > 0;
     }
 }
