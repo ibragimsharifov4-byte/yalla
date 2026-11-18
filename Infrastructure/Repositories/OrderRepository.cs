@@ -29,7 +29,8 @@ public class OrderRepository(AppDbContext appDbContext) : IOrderRepository
 
     public async Task<List<Order>> GetAllOrders()
     {
-        return await _context.Orders.ToListAsync();
+        var orders = await _context.Orders.Include(e => e.Company).ToListAsync();
+        return orders;
     }
 
     public async Task<Order> GetOrder(int id)

@@ -29,7 +29,8 @@ public class MenuItemRepository(AppDbContext appDbContext) : IMenuItemRepository
 
     public async Task<List<MenuItem>> GetAllMenuItems()
     {
-        return await _context.MenuItems.ToListAsync();
+        var menuItems = await _context.MenuItems.Include(e => e.Menu).ToListAsync();
+        return menuItems;
     }
 
     public async Task<MenuItem> GetMenuItem(int id)

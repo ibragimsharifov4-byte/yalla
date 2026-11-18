@@ -29,7 +29,9 @@ public class OrderItemRepository(AppDbContext appDbContext) : IOrderItemReposito
 
     public async Task<List<OrderItem>> GetAllOrderItems()
     {
-        return await _context.OrderItems.ToListAsync();
+        var orderItems = await _context.OrderItems.Include(e => e.Order).Include(e => e.MenuItem).ToListAsync();
+        return orderItems;
+        
     }
 
     public async Task<OrderItem> GetOrderItem(int id)

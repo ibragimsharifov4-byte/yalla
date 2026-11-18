@@ -9,4 +9,5 @@ public class Company
     public string Email { get; set; } = null!;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public DateTime UpdatedAt { get; set; } = DateTime.Now;
+    public List<Order> Orders { get; set; } = new();
 }
